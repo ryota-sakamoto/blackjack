@@ -6,6 +6,7 @@ use std::io::{
     Write,
 };
 use Card::*;
+use Command::*;
 use rand::{
     Rng,
     thread_rng,
@@ -58,17 +59,19 @@ impl User {
     }
 }
 
+enum Command {
+    Hit,
+    Stand,
+    Surrender,
+    Invalid,
+}
+
 fn main() {
     let mut cards = create_cards();  
     let mut dealer = User::new("Dealer");
-    print!("- BlackJack Start -
-# Input your name
-> ");
-    stdout().flush();
-    let mut name = String::new();
-    stdin().read_line(&mut name);
+    println!("- BlackJack Start -");
 
-    let mut user = User::new(name.trim());
+    let mut user = create_user();
     print!("# How much will you bed?
 > ");
     stdout().flush();
@@ -95,16 +98,29 @@ fn main() {
     println!("{} is {:?}", user.name, user.cards);
     
     let mut is_game = true;
-    while is_select_hit() {
-        println!("# Draw card");
-        let card = cards.pop().unwrap();
-        user.cards.push(card);
+    loop {
+        match get_command() {
+            Hit => {
+                println!("# Draw card");
+                let card = cards.pop().unwrap();
+                user.cards.push(card);
 
-        println!("# {} is {:?}", user.name, user.cards);
-        if user.sum() > 21 {
-            println!("# You lose");
-            is_game = false;
-            break;
+                println!("# {} is {:?}", user.name, user.cards);
+                if user.sum() > 21 {
+                    println!("# You lose");
+                    is_game = false;
+                    break;
+                }
+            },
+            Stand => {
+                break;
+            },
+            Surrender => {
+                is_game = false;
+                user.money += bed / 2;
+                break;
+            },
+            Invalid => continue,
         }
     }
 
@@ -116,6 +132,7 @@ fn main() {
             dealer.show();
             println!("# Dealer lose");
             is_game = false;
+            user.money += bed * 2;
             break;
         }
     }
@@ -123,13 +140,20 @@ fn main() {
     if is_game {
         dealer.show();
         user.show();
-        // TODO
-        println!("# {} is winner", if user.sum() > dealer.sum() {
-            user.name
+
+        let user_sum = user.sum();
+        let dealer_sum = dealer.sum();
+        if user_sum == dealer_sum {
+            println!("# Result: Draw");
+        } else if user_sum < dealer_sum {
+            println!("# Result: {} lose", user.name);
         } else {
-            dealer.name
-        });
+            println!("# Result: {} win", user.name);
+            user.money += bed * 2;
+        }
     }
+    
+    println!("You have {}", user.money);
 }
 
 fn create_cards() -> Vec<Card> {
@@ -145,15 +169,31 @@ fn create_cards() -> Vec<Card> {
     cards
 }
 
-fn is_select_hit() -> bool {
+fn create_user() -> User {
+    print!("# Input your name
+> ");
+    stdout().flush();
+    let mut name = String::new();
+    stdin().read_line(&mut name);
+
+    User::new(name.trim())
+}
+
+fn get_command() -> Command {
     print!("What are you doing?
 1. Hit
 2. Stand
+3. Surrender
 > ");
     stdout().flush();
     let mut num = String::new();
     stdin().read_line(&mut num);
     let num: u8 = num.trim().parse().unwrap();
 
-    num == 1
+    match num {
+        1 => Hit,
+        2 => Stand,
+        3 => Surrender,
+        _ => Invalid,
+    }
 }
